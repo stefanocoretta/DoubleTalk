@@ -1,0 +1,7 @@
+*.DS_Store
+/data-raw/data/DS_10283_4490
+
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata

@@ -1,0 +1,21 @@
+---
+title: "Force-alignment"
+author: "Stefano Coretta"
+format: html
+editor: visual
+---
+
+We will use the Montreal Forced Aligner to force-align the phonetic transcription to the audio files.
+
+First we validate the corpus.
+
+``` bash
+cd data-raw/data/DS_10283_4490/espf-doubletalk/project/espf-dialogue
+mfa validate --clean participant_task english_uk_mfa 
+```
+
+Let's align the audio files. I modified the TextGrids to remove `[s]` for silence in the transcriptions since they were causing an error with mfa.
+
+``` bash
+mfa align --clean --include_original_text --fine_tune --g2p_model_path ~/Documents/MFA/pretrained_models/g2p/english_uk_mfa.zip participant_task english_uk_mfa english_mfa participant_task_aligned
+```
