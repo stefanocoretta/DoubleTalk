@@ -1,0 +1,43 @@
+---
+title: "Process EMA data"
+author: "Stefano Coretta"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: setup
+
+library(tidyverse)
+library(rticulate)
+```
+
+```{r}
+#| label: metadata
+metadata <- read_csv("../data/DS_10283_4490/espf-doubletalk/metadata.csv")
+
+unique(metadata$task_slug)
+```
+
+## Script reading
+
+```{r}
+#| label: get-script-files
+
+script <- metadata |> 
+  filter(task_slug == "script-reading-comma-gets-a-cure-scottish-version")
+
+script_dirs <- glue::glue("../data/DS_10283_4490/espf-doubletalk/project/espf-dialogue/participant_task/{script$ptask_id}")
+
+script_pos <- list.files(script_dirs, "*.pos", full.names = TRUE)
+```
+
+```{r}
+#| label: read-script-pos
+
+script_ema <- tibble()
+
+for (file in script_pos) {
+  script_ema <- bind_rows(script_ema, read_ag500_pos(file))
+}
+```
