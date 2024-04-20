@@ -12,6 +12,7 @@ editor: visual
 
 library(tidyverse)
 library(rticulate)
+library(readtextgrid)
 ```
 
 ```{r}
@@ -19,6 +20,7 @@ library(rticulate)
 metadata <- read_csv("../data/DS_10283_4490/espf-doubletalk/metadata.csv")
 
 ptask <- "../data/DS_10283_4490/espf-doubletalk/project/espf-dialogue/participant_task"
+ptask_align = paste0(ptask, "_aligned")
 
 unique(metadata$task_slug)
 ```
@@ -35,13 +37,16 @@ script_ids <- script$ptask_id
 ```
 
 ```{r}
-#| label: read-script-pos
+#| label: read-script
 
-script_ema <- tibble()
+script_ema_full <- tibble()
+script_tg_info <- tibble()
 
 for (id in script_ids) {
   this_dir <- glue::glue("{ptask}/{id}")
+  this_dir_tg <- glue::glue("{ptask_align}/{id}")
   
+  # Read pos
   script_pos <- list.files(this_dir, "*.pos", full.names = TRUE)
   script_sens <- list.files(this_dir, "*_1.csv", full.names = TRUE)
   
@@ -53,12 +58,55 @@ for (id in script_ids) {
     mutate(ptask_id = id) |> 
     left_join(y = sensors)
   
-  script_ema <- bind_rows(script_ema, this_ema)
+  script_ema_full <- bind_rows(script_ema_full, this_ema)
+  
+  # Read tg
+  script_tg <- list.files(this_dir_tg, "*.TextGrid", full.names = TRUE)
+  
+  this_tg <- read_textgrid(script_tg) |> 
+    mutate(ptask_id = id)
+  
+  script_tg_info <- bind_rows(script_tg_info, this_tg)
 }
 
-script_ema <- script_ema |> 
+script_ema_full <- script_ema_full |> 
   relocate(ptask_id, chn, sensor_location, sample:extra, sensor_notes, file) |> 
   filter(sensor_location != "Unused")
 
 rm(this_ema, sensors)
+```
+
+Now we use the `script_tg_info` to filter `script_ema_full` so that it contains only data from utterances.
+
+```{r}
+#| label: script-ema
+
+script_utter <- script_tg_info |>
+  filter(tier_name == "utterances", text != "")
+
+script_ema <- tibble()
+
+for (id in script_ids) {
+  id_tg <- script_utter |> 
+    filter(ptask_id == id)
+  
+  for (utt in seq_along(id_tg$text)) {
+    utt_start <- id_tg$xmin[utt]
+    utt_end <- id_tg$xmax[utt]
+    utt_num <- id_tg$annotation_num[utt]
+    
+    this_ema <- script_ema_full |>
+      filter(
+        ptask_id == id,
+        time >= utt_start, time <= utt_end
+      ) |> 
+      mutate(
+        utt_num = utt_num
+      )
+    
+    script_ema <- bind_rows(script_ema, this_ema)
+  }
+}
+
+saveRDS(script_ema, "../data/derived/rds/script_ema.rds")
 ```
