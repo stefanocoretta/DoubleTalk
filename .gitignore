@@ -1,5 +1,6 @@
 *.DS_Store
 /data-raw/data/DS_10283_4490
+/data-raw/data/derived/rds
 
 .Rproj.user
 .Rhistory
