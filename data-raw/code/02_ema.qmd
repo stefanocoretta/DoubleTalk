@@ -5,6 +5,8 @@ format: html
 editor: visual
 ---
 
+## Read metadata
+
 ```{r}
 #| label: setup
 
@@ -15,6 +17,8 @@ library(rticulate)
 ```{r}
 #| label: metadata
 metadata <- read_csv("../data/DS_10283_4490/espf-doubletalk/metadata.csv")
+
+ptask <- "../data/DS_10283_4490/espf-doubletalk/project/espf-dialogue/participant_task"
 
 unique(metadata$task_slug)
 ```
@@ -27,9 +31,7 @@ unique(metadata$task_slug)
 script <- metadata |> 
   filter(task_slug == "script-reading-comma-gets-a-cure-scottish-version")
 
-script_dirs <- glue::glue("../data/DS_10283_4490/espf-doubletalk/project/espf-dialogue/participant_task/{script$ptask_id}")
-
-script_pos <- list.files(script_dirs, "*.pos", full.names = TRUE)
+script_ids <- script$ptask_id
 ```
 
 ```{r}
@@ -37,7 +39,26 @@ script_pos <- list.files(script_dirs, "*.pos", full.names = TRUE)
 
 script_ema <- tibble()
 
-for (file in script_pos) {
-  script_ema <- bind_rows(script_ema, read_ag500_pos(file))
+for (id in script_ids) {
+  this_dir <- glue::glue("{ptask}/{id}")
+  
+  script_pos <- list.files(this_dir, "*.pos", full.names = TRUE)
+  script_sens <- list.files(this_dir, "*_1.csv", full.names = TRUE)
+  
+  sensors <- read_csv(script_sens) |> 
+    mutate(ptask_id = id) |> 
+    rename(chn = "channel")
+  
+  this_ema <- read_ag500_pos(script_pos[1]) |> 
+    mutate(ptask_id = id) |> 
+    left_join(y = sensors)
+  
+  script_ema <- bind_rows(script_ema, this_ema)
 }
+
+script_ema <- script_ema |> 
+  relocate(ptask_id, chn, sensor_location, sample:extra, sensor_notes, file) |> 
+  filter(sensor_location != "Unused")
+
+rm(this_ema, sensors)
 ```
